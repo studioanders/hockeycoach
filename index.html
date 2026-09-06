@@ -1,0 +1,1293 @@
+<!DOCTYPE html>
+
+<html lang="nl">
+<head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" name="viewport"/>
+<meta content="yes" name="apple-mobile-web-app-capable"/>
+<meta content="black-translucent" name="apple-mobile-web-app-status-bar-style"/>
+<meta content="D3 Coach" name="apple-mobile-web-app-title"/>
+<meta content="#1a237e" name="theme-color"/>
+<link href="manifest.json" rel="manifest"/>
+<link href="icon-192.png" rel="apple-touch-icon"/>
+<title>D3 Coach</title>
+<style>
+:root{
+  --blue:#1a237e;--blue-mid:#283593;--blue-light:#3949ab;
+  --orange:#e65100;--orange-light:#ff6d00;
+  --green:#2e7d32;--bench:#e65100;--field:#2e7d32;
+  --bg:#f0f2ff;--card:#fff;--text:#1a1a1a;--muted:#666;
+  --shadow:0 2px 8px rgba(0,0,0,0.13);--r:12px;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden;-webkit-tap-highlight-color:transparent;}
+.sticky-top{position:sticky;top:0;z-index:100;}
+
+/* HEADER */
+header{background:linear-gradient(135deg,var(--blue),var(--blue-light));color:white;padding:8px 12px;display:flex;align-items:center;justify-content:space-between;gap:10px;box-shadow:0 3px 10px rgba(0,0,0,0.3);}
+.hdr-clock{display:flex;flex-direction:column;align-items:flex-start;min-width:110px;}
+.clock{font-size:36px;font-weight:900;font-variant-numeric:tabular-nums;letter-spacing:1px;line-height:1;cursor:pointer;}
+.clock:active{opacity:0.7;}
+.clock.paused{color:#ffcc02;}
+.clock.halftime{color:#ce93d8;}
+.clock-sub{display:flex;align-items:center;gap:6px;margin-top:2px;}
+.qbadge{background:var(--orange);color:white;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;}
+.qbadge.pause{background:#90caf9;color:#0d47a1;}
+.qbadge.half{background:#ce93d8;color:#4a148c;}
+.qlabel{font-size:10px;opacity:0.75;}
+
+/* SCORE */
+.hdr-score{flex:1;display:flex;flex-direction:column;align-items:center;cursor:pointer;padding:4px 6px;border-radius:10px;transition:background 0.15s;}
+.hdr-score:active{background:rgba(255,255,255,0.15);}
+.score-row{display:flex;align-items:center;gap:8px;}
+.sval{font-size:30px;font-weight:900;font-variant-numeric:tabular-nums;line-height:1;}
+.sval.hcqz{color:var(--orange-light);}
+.sval.opp{color:#fff;}
+.slbl{font-size:9px;opacity:0.7;text-transform:uppercase;letter-spacing:0.5px;margin-top:1px;}
+.ssep{font-size:22px;font-weight:700;opacity:0.4;}
+.shint{font-size:8px;opacity:0.4;letter-spacing:0.3px;margin-top:1px;}
+
+.hdr-ctrl{display:flex;gap:5px;align-items:center;}
+
+/* BUTTONS */
+.btn{border:none;border-radius:10px;font-weight:700;cursor:pointer;transition:transform 0.1s,background 0.15s;display:flex;align-items:center;justify-content:center;min-height:40px;white-space:nowrap;font-size:13px;padding:0 12px;}
+.btn:active{transform:scale(0.93);}
+.btn-start{background:var(--orange);color:white;min-width:80px;}
+.btn-stop{background:#ef5350;color:white;min-width:80px;}
+.btn-ghost{background:rgba(255,255,255,0.18);color:white;padding:0 10px;}
+.btn-ghost2{background:rgba(255,255,255,0.12);color:white;padding:0 9px;border:1px solid rgba(255,255,255,0.25);}
+.bsm{min-height:40px;padding:0 12px;font-size:12px;border-radius:8px;border:none;cursor:pointer;font-weight:700;transition:background 0.15s,transform 0.1s;}
+.bsm:active{transform:scale(0.93);}
+.b-blue{background:var(--blue);color:white;}
+.b-blue:active{background:#0d47a1;}
+.b-green{background:var(--green);color:white;}
+.b-green:active{background:#1b5e20;}
+.b-red{background:#c62828;color:white;}
+.b-red:active{background:#7f0000;}
+.b-apply{background:var(--green);color:white;font-size:13px;padding:0 16px;}
+.b-apply:active{background:#1b5e20;}
+
+/* PROGRESS */
+.prog-wrap{background:var(--blue-mid);padding:5px 12px 7px;}
+.prog-row{display:flex;gap:3px;align-items:center;}
+.pb{flex:1;height:7px;border-radius:4px;background:rgba(255,255,255,0.18);overflow:hidden;}
+.pb-fill{height:100%;border-radius:4px;background:var(--orange);transition:width 1s linear;}
+.pb.done .pb-fill{background:rgba(255,255,255,0.55);width:100%!important;}
+.pb.active .pb-fill{background:#ffcc02;}
+.pb.pause-b{flex:0 0 8px;background:rgba(144,202,249,0.35);}
+.pb.pause-b .pb-fill{background:#90caf9;}
+.pb.half-b{flex:0 0 14px;background:rgba(206,147,216,0.35);}
+.pb.half-b .pb-fill{background:#ce93d8;}
+.prog-lbls{display:flex;justify-content:space-between;margin-top:3px;}
+.prog-lbl{font-size:8px;color:rgba(255,255,255,0.65);font-weight:600;}
+
+/* TABS */
+.tab-bar{background:var(--blue);display:flex;}
+.tab-btn{flex:1;padding:9px 4px;border:none;background:none;color:rgba(255,255,255,0.55);font-size:11px;font-weight:700;cursor:pointer;text-transform:uppercase;letter-spacing:0.4px;border-bottom:3px solid transparent;min-height:40px;transition:all 0.2s;}
+.tab-btn.active{color:white;border-bottom-color:var(--orange);background:rgba(255,255,255,0.07);}
+.tab-pane{display:none;}
+.tab-pane.active{display:block;}
+
+/* BANNERS */
+.offline-bar{display:none;background:#c62828;color:white;text-align:center;font-size:11px;font-weight:700;padding:4px;}
+.offline-bar.show{display:block;}
+.install-bar{display:none;background:var(--blue-light);color:white;padding:8px 14px;text-align:center;font-size:12px;font-weight:600;align-items:center;justify-content:center;gap:8px;flex-wrap:wrap;}
+.install-bar.show{display:flex;}
+.install-bar button{background:white;color:var(--blue);border:none;padding:4px 10px;border-radius:7px;font-weight:700;font-size:11px;cursor:pointer;min-height:36px;}
+.save-bar{background:var(--blue-mid);color:rgba(255,255,255,0.6);text-align:center;font-size:10px;padding:3px;}
+
+/* PAUSE BANNER */
+.pause-banner{display:none;background:linear-gradient(135deg,#1565c0,#1976d2);color:white;border-radius:var(--r);padding:10px 16px;margin-bottom:8px;text-align:center;box-shadow:var(--shadow);}
+.pause-banner.half-banner{background:linear-gradient(135deg,#6a1b9a,#8e24aa);}
+.pause-banner.show{display:block;}
+.pause-banner h2{font-size:16px;margin-bottom:2px;}
+.pause-banner p{font-size:11px;opacity:0.85;}
+.pause-cd{font-size:28px;font-weight:800;font-variant-numeric:tabular-nums;margin:4px 0 3px;}
+.pause-skip{background:rgba(255,255,255,0.2);color:white;border:1px solid rgba(255,255,255,0.4);padding:5px 14px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;min-height:40px;}
+
+/* MAIN */
+main{padding:10px;max-width:800px;margin:0 auto;}
+
+/* STATS BAR */
+.stats-bar{display:flex;gap:6px;margin-bottom:8px;}
+.stat-card{flex:1;background:var(--card);border-radius:10px;padding:7px 8px;box-shadow:var(--shadow);text-align:center;}
+.stat-val{font-size:20px;font-weight:800;line-height:1;}
+.stat-val.on{color:var(--field);}
+.stat-val.off{color:var(--bench);}
+.stat-val.goal{color:var(--field);}
+.stat-val.against{color:var(--bench);}
+.stat-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-top:2px;}
+
+/* SECTION */
+.sec-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+.sec-title{font-size:13px;font-weight:700;color:var(--blue);}
+
+/* PLAYER GRID */
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:7px;margin-bottom:12px;}
+
+/* PLAYER CARD */
+.pcard{background:var(--card);border-radius:var(--r);padding:9px 11px;box-shadow:var(--shadow);border-left:4px solid #ccc;position:relative;}
+.pcard.on-field{border-left-color:var(--field);}
+.pcard.off-field{border-left-color:var(--bench);}
+.card-top{display:flex;align-items:center;gap:8px;}
+.pnum{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800;flex-shrink:0;}
+.on-field .pnum{background:var(--field);color:white;}
+.off-field .pnum{background:#fff3e0;color:var(--bench);}
+.pinfo{flex:1;min-width:0;}
+.pname{font-size:13px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ppos{font-size:11px;color:var(--muted);}
+.ptimes{display:flex;gap:8px;margin-top:3px;flex-wrap:wrap;}
+.pt{font-size:11px;font-weight:600;font-variant-numeric:tabular-nums;}
+.pt.field{color:var(--field);}
+.pt.bench{color:var(--bench);}
+.pstats{display:flex;gap:10px;margin-top:4px;}
+.pst{font-size:11px;font-weight:700;color:var(--blue);}
+.toggle-wrap{display:flex;flex-direction:column;align-items:center;gap:2px;flex-shrink:0;}
+.tlbl{font-size:9px;font-weight:700;text-transform:uppercase;}
+.on-field .tlbl{color:var(--field);}
+.off-field .tlbl{color:var(--bench);}
+.toggle{position:relative;width:48px;height:26px;}
+.toggle input{opacity:0;width:0;height:0;}
+.slider{position:absolute;inset:0;border-radius:26px;cursor:pointer;transition:background 0.3s;background:#ffccbc;}
+.slider::before{content:'';position:absolute;width:20px;height:20px;left:3px;top:3px;border-radius:50%;background:white;box-shadow:0 2px 5px rgba(0,0,0,0.25);transition:transform 0.3s;}
+input:checked+.slider{background:var(--field);}
+input:checked+.slider::before{transform:translateX(22px);}
+.del-btn{position:absolute;top:5px;right:5px;background:none;border:none;color:#ccc;font-size:13px;cursor:pointer;padding:2px 4px;border-radius:5px;}
+.del-btn:hover{color:#c62828;background:#ffebee;}
+.empty{text-align:center;padding:20px;color:var(--muted);font-size:13px;}
+
+/* TEAM TAB */
+.team-wrap{padding:10px;max-width:800px;margin:0 auto;}
+.team-toolbar{display:flex;gap:7px;align-items:center;margin-bottom:10px;flex-wrap:wrap;}
+.search{flex:1;min-width:130px;padding:8px 12px;border:2px solid #e0e0e0;border-radius:9px;font-size:13px;outline:none;min-height:40px;}
+.search:focus{border-color:var(--blue);}
+.team-list{display:flex;flex-direction:column;gap:6px;}
+.trow{background:var(--card);border-radius:var(--r);padding:9px 12px;box-shadow:var(--shadow);display:flex;align-items:center;gap:9px;border-left:4px solid #e0e0e0;flex-wrap:wrap;}
+.trow.in-squad{border-left-color:var(--blue);}
+.tnum{width:34px;height:34px;border-radius:50%;background:#e8eaf6;color:var(--blue);display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;flex-shrink:0;}
+.tinfo{flex:1;min-width:90px;}
+.tname{font-size:13px;font-weight:700;}
+.tpos{font-size:11px;color:var(--muted);}
+.tstats{font-size:10px;color:var(--muted);margin-top:2px;}
+.tactions{display:flex;gap:5px;align-items:center;flex-wrap:wrap;}
+.squad-cb{width:20px;height:20px;accent-color:var(--blue);cursor:pointer;}
+
+/* STATS TAB */
+.stats-wrap{padding:10px;max-width:800px;margin:0 auto;}
+.season-card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:11px 13px;margin-bottom:10px;}
+.season-card h3{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:8px;}
+.season-row{display:flex;gap:8px;flex-wrap:wrap;}
+.season-item{flex:1;min-width:70px;text-align:center;background:#f0f2ff;border-radius:10px;padding:8px 6px;}
+.season-val{font-size:22px;font-weight:900;font-variant-numeric:tabular-nums;}
+.season-val.own{color:var(--field);}
+.season-val.opp{color:var(--bench);}
+.season-val.pos{color:var(--field);}
+.season-val.neg{color:var(--bench);}
+.season-val.neu{color:#888;}
+.season-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:0.4px;margin-top:2px;}
+.opp-log{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:11px 13px;margin-bottom:10px;}
+.opp-log h3{font-size:13px;font-weight:700;color:var(--bench);margin-bottom:8px;}
+.log-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow-y:auto;}
+.log-item{display:flex;align-items:center;gap:6px;padding:5px 8px;background:#fff3e0;border-radius:8px;font-size:11px;flex-wrap:wrap;}
+.li-time{font-weight:700;color:var(--bench);font-variant-numeric:tabular-nums;min-width:34px;}
+.li-name{font-weight:700;flex:1;}
+.li-type{background:var(--bench);color:white;padding:1px 6px;border-radius:6px;font-size:10px;font-weight:700;}
+.li-del{background:none;border:none;color:#bbb;cursor:pointer;font-size:12px;padding:0 3px;}
+.li-del:hover{color:#c62828;}
+.empty-log{color:var(--muted);font-size:12px;text-align:center;padding:8px;}
+.tbl-wrap{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);overflow:hidden;margin-bottom:12px;overflow-x:auto;}
+.tbl{width:100%;border-collapse:collapse;font-size:11px;min-width:480px;}
+.tbl th{background:var(--blue);color:white;padding:8px 9px;text-align:left;font-size:10px;text-transform:uppercase;letter-spacing:0.4px;white-space:nowrap;}
+.tbl td{padding:8px 9px;border-bottom:1px solid #f0f0f0;vertical-align:middle;}
+.tbl tr:last-child td{border-bottom:none;}
+.tbl tr:hover td{background:#f0f2ff;}
+.n{font-weight:800;font-variant-numeric:tabular-nums;}
+.n.g{color:var(--field);}
+.n.t{color:var(--blue);}
+.n.b{color:var(--bench);}
+
+/* DATA TAB */
+.data-wrap{padding:10px;max-width:600px;margin:0 auto;}
+.dcard{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:13px;margin-bottom:10px;}
+.dcard h3{font-size:13px;font-weight:700;color:var(--blue);margin-bottom:7px;}
+.dcard p{font-size:12px;color:var(--muted);margin-bottom:9px;line-height:1.5;}
+.dactions{display:flex;gap:7px;flex-wrap:wrap;}
+
+/* MODALS */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:200;align-items:center;justify-content:center;}
+.modal-overlay.open{display:flex;}
+.modal{background:white;border-radius:18px;padding:18px 16px;width:360px;max-width:92vw;box-shadow:0 8px 40px rgba(0,0,0,0.3);max-height:88vh;overflow-y:auto;}
+.modal h2{font-size:16px;margin-bottom:12px;color:var(--blue);}
+.fg{margin-bottom:10px;}
+.fg label{display:block;font-size:11px;font-weight:600;margin-bottom:4px;color:var(--muted);}
+.fg input,.fg select{width:100%;padding:8px 11px;border:2px solid #e0e0e0;border-radius:9px;font-size:13px;outline:none;min-height:40px;}
+.fg input:focus,.fg select:focus{border-color:var(--blue);}
+.mactions{display:flex;gap:8px;margin-top:12px;}
+.m-cancel{flex:1;background:#f0f0f0;color:#555;padding:10px;font-size:13px;border-radius:10px;border:none;cursor:pointer;font-weight:700;min-height:40px;}
+.m-confirm{flex:2;background:var(--blue);color:white;padding:10px;font-size:13px;border-radius:10px;border:none;cursor:pointer;font-weight:700;min-height:40px;}
+.m-danger{background:#c62828;}
+.m-center{width:290px;text-align:center;}
+.m-center p{color:var(--muted);margin:7px 0 12px;font-size:12px;}
+
+/* GOAL TYPE BTNS */
+.gtype-btn{padding:5px 9px;border-radius:7px;border:2px solid #e0e0e0;background:white;font-size:11px;font-weight:700;cursor:pointer;color:#555;transition:all 0.15s;min-height:36px;}
+.gtype-btn.active{border-color:var(--blue);background:#e8eaf6;color:var(--blue);}
+
+/* CLOCK EDIT */
+.clock-modal{width:300px;text-align:center;}
+.clock-inputs{display:flex;align-items:center;justify-content:center;gap:8px;margin:12px 0;}
+.ci{width:70px;padding:8px;border:2px solid #e0e0e0;border-radius:9px;font-size:22px;font-weight:800;text-align:center;outline:none;font-variant-numeric:tabular-nums;}
+.ci:focus{border-color:var(--blue);}
+.ccolon{font-size:24px;font-weight:800;color:var(--blue);}
+.chint{font-size:11px;color:var(--muted);margin-bottom:8px;}
+
+/* SCORE EDIT MODAL */
+.score-modal{width:min(600px,92vw);max-height:88vh;overflow-y:auto;}
+.ha-toggle{display:flex;gap:6px;margin-bottom:8px;}
+.ha-btn{flex:1;padding:7px;border:2px solid #e0e0e0;border-radius:9px;font-size:11px;font-weight:700;cursor:pointer;background:white;color:#555;transition:all 0.15s;min-height:40px;}
+.ha-btn.active{border-color:var(--blue);background:#e8eaf6;color:var(--blue);}
+.score-preview{text-align:center;padding:8px;background:#f0f2ff;border-radius:10px;margin-bottom:8px;}
+.sp-nums{font-size:26px;font-weight:900;font-variant-numeric:tabular-nums;color:var(--blue);}
+.sp-lbl{font-size:10px;color:var(--muted);margin-top:1px;}
+.se-section{border:1px solid #e0e0e0;border-radius:10px;padding:10px 12px;margin-bottom:8px;}
+.se-hcqz{border-color:#c8d8ff;background:#f8f9ff;}
+.se-opp{border-color:#ffd0b0;background:#fff8f3;}
+.se-title{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;color:var(--blue);margin-bottom:8px;}
+.se-opp .se-title{color:var(--bench);}
+.se-row{display:flex;align-items:center;gap:8px;margin-bottom:7px;}
+.se-row:last-child{margin-bottom:0;}
+.se-row label{font-size:11px;font-weight:700;color:var(--muted);min-width:80px;flex-shrink:0;}
+.se-btns{display:flex;gap:5px;flex-wrap:wrap;}
+.se-sel{flex:1;padding:6px 8px;border:2px solid #e0e0e0;border-radius:8px;font-size:12px;outline:none;min-height:36px;}
+.se-sel:focus{border-color:var(--blue);}
+.se-num{width:60px;padding:6px;border:2px solid #e0e0e0;border-radius:9px;font-size:20px;font-weight:900;text-align:center;outline:none;font-variant-numeric:tabular-nums;min-height:40px;}
+.se-num:focus{border-color:var(--blue);}
+.se-name{flex:1;padding:7px 9px;border:2px solid #e0e0e0;border-radius:8px;font-size:12px;outline:none;min-height:36px;}
+.se-name:focus{border-color:var(--blue);}
+
+/* TOAST */
+.toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%) translateY(80px);background:#222;color:white;padding:9px 18px;border-radius:24px;font-size:13px;font-weight:600;z-index:300;transition:transform 0.3s ease;pointer-events:none;white-space:nowrap;}
+.toast.show{transform:translateX(-50%) translateY(0);}
+
+@media(max-width:500px){
+  .clock{font-size:28px;}
+  .sval{font-size:24px;}
+  .pgrid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<div class="offline-bar" id="offlineBar">Offline - app werkt lokaal</div>
+<div class="install-bar" id="installBar">
+<span>Installeer: tik op <strong>Delen</strong> dan <strong>Zet op beginscherm</strong></span>
+<button onclick="dismissInstall()">X</button>
+</div>
+<div class="sticky-top">
+<header>
+<div class="hdr-clock">
+<div class="clock" id="gameClock" onclick="openClockEdit()">17:30</div>
+<div class="clock-sub">
+<span class="qbadge" id="qBadge">Kwart 1</span>
+<span class="qlabel" id="qLabel">van 17:30</span>
+</div>
+</div>
+<div class="hdr-score" onclick="openScoreEdit()">
+<div class="score-row">
+<div>
+<div class="sval hcqz" id="scoreLeft">0</div>
+<div class="slbl" id="lblLeft">HCQZ</div>
+</div>
+<div class="ssep">-</div>
+<div>
+<div class="sval opp" id="scoreRight">0</div>
+<div class="slbl" id="lblRight">Tegen</div>
+</div>
+</div>
+<div class="shint">tik om te bewerken</div>
+</div>
+<div class="hdr-ctrl">
+<button class="btn btn-ghost2" onclick="nextQuarter()">Volgend</button>
+<button class="btn btn-ghost" onclick="openResetModal()">Reset</button>
+<button class="btn btn-start" id="startBtn" onclick="toggleClock()">Start</button>
+</div>
+</header>
+<div class="prog-wrap">
+<div class="prog-row" id="progRow"></div>
+<div class="prog-lbls">
+<span class="prog-lbl">0:00</span>
+<span class="prog-lbl">K1</span>
+<span class="prog-lbl">K2</span>
+<span class="prog-lbl">K3</span>
+<span class="prog-lbl">K4</span>
+<span class="prog-lbl">Einde</span>
+</div>
+</div>
+<div class="tab-bar">
+<button class="tab-btn active" onclick="switchTab('match')">Wedstrijd</button>
+<button class="tab-btn" onclick="switchTab('team')">Team</button>
+<button class="tab-btn" onclick="switchTab('stats')">Statistieken</button>
+<button class="tab-btn" onclick="switchTab('data')">Data</button>
+</div>
+<div class="save-bar" id="saveBar">Laden...</div>
+</div>
+<!-- WEDSTRIJD TAB -->
+<div class="tab-pane active" id="tab-match">
+<main>
+<div class="pause-banner" id="pauseBanner">
+<h2 id="pauseTitle">Korte Pauze</h2>
+<p id="pauseDesc">Drinkpauze / tactische bijsturing</p>
+<div class="pause-cd" id="pauseCD">2:00</div>
+<button class="pause-skip" onclick="skipPause()">Overslaan</button>
+</div>
+<div class="stats-bar">
+<div class="stat-card"><div class="stat-val on" id="stOn">0</div><div class="stat-lbl">Op Veld</div></div>
+<div class="stat-card"><div class="stat-val off" id="stOff">0</div><div class="stat-lbl">Op Bank</div></div>
+<div class="stat-card"><div class="stat-val goal" id="stGoals">0</div><div class="stat-lbl">Eigen</div></div>
+<div class="stat-card"><div class="stat-val against" id="stAgainst">0</div><div class="stat-lbl">Tegen</div></div>
+<div class="stat-card"><div class="stat-val" id="stTotal">0</div><div class="stat-lbl">Spelers</div></div>
+</div>
+<div class="sec-hdr"><div class="sec-title">Op Veld</div></div>
+<div class="pgrid" id="onGrid"></div>
+<div class="sec-hdr"><div class="sec-title">Op Bank</div></div>
+<div class="pgrid" id="offGrid"></div>
+</main>
+</div>
+<!-- TEAM TAB -->
+<div class="tab-pane" id="tab-team">
+<div class="team-wrap">
+<div class="team-toolbar">
+<input class="search" id="teamSearch" oninput="renderTeam()" placeholder="Zoek speler..." type="text"/>
+<button class="bsm b-green" onclick="openAddPlayer()">Nieuwe speler</button>
+<button class="bsm b-apply" id="applyBtn" onclick="applySquad()">Selectie toepassen</button>
+</div>
+<p style="font-size:11px;color:var(--muted);margin-bottom:8px;">Vink spelers aan voor de wedstrijdselectie.</p>
+<div class="team-list" id="teamList"></div>
+</div>
+</div>
+<!-- STATISTIEKEN TAB -->
+<div class="tab-pane" id="tab-stats">
+<div class="stats-wrap">
+<div class="season-card">
+<h3>Seizoensoverzicht - Doelpunten</h3>
+<div class="season-row" id="seasonRow"></div>
+</div>
+<div class="opp-log">
+<h3>Tegendoelpuntenlog</h3>
+<div class="log-list" id="oppLogList"><div class="empty-log">Nog geen tegendoelpunten</div></div>
+</div>
+<div style="display:flex;gap:7px;margin-bottom:10px;flex-wrap:wrap;align-items:center;">
+<h2 style="font-size:14px;font-weight:700;color:var(--blue);flex:1;">Spelersstatistieken</h2>
+<button class="bsm b-blue" onclick="sortStats('name')">Naam</button>
+<button class="bsm b-blue" onclick="sortStats('goals')">Goals</button>
+<button class="bsm b-blue" onclick="sortStats('time')">Veld</button>
+<button class="bsm b-blue" onclick="sortStats('bench')">Bank</button>
+<button class="bsm b-blue" onclick="sortStats('matches')">Wedstr.</button>
+</div>
+<div class="tbl-wrap">
+<table class="tbl">
+<thead>
+<tr>
+<th>#</th><th>Naam</th><th>Pos.</th><th>W</th>
+<th>Veld</th><th>Bank</th><th>Totaal</th><th>%</th>
+<th>Goals</th><th>Assists</th>
+</tr>
+</thead>
+<tbody id="statsTbody"></tbody>
+</table>
+</div>
+</div>
+</div>
+<!-- DATA TAB -->
+<div class="tab-pane" id="tab-data">
+<div class="data-wrap">
+<div class="dcard">
+<h3>Opslag status</h3>
+<p id="storageStatus">Controleren...</p>
+<div class="dactions">
+<button class="bsm b-blue" onclick="forceSave()">Nu opslaan</button>
+<button class="bsm b-green" onclick="exportData()">Exporteer JSON</button>
+<button class="bsm b-blue" onclick="document.getElementById('importFile').click()">Importeer JSON</button>
+<input accept=".json" id="importFile" onchange="importData(event)" style="display:none" type="file"/>
+</div>
+</div>
+<div class="dcard">
+<h3>Gegevens wissen</h3>
+<p>Wis seizoensstatistieken of alle gegevens.</p>
+<div class="dactions">
+<button class="bsm b-red" onclick="clearSeason()">Wis seizoen</button>
+<button class="bsm b-red" onclick="clearAll()">Wis alles</button>
+</div>
+</div>
+<div class="dcard">
+<h3>App-informatie</h3>
+<p><strong>D3 Coach</strong> v5.0<br/>Offline PWA voor iPad iOS 16+.<br/>Opslag: IndexedDB<br/>Laatste opslag: <span id="lastSaved">-</span></p>
+</div>
+</div>
+</div>
+<!-- MODAL: Speler toevoegen/bewerken -->
+<div class="modal-overlay" id="playerModal">
+<div class="modal">
+<h2 id="playerModalTitle">Nieuwe speler</h2>
+<div class="fg"><label>Rugnummer</label><input id="pNum" max="99" min="1" placeholder="bijv. 7" type="number"/></div>
+<div class="fg"><label>Naam</label><input id="pName" placeholder="bijv. Emma van Dijk" type="text"/></div>
+<div class="fg">
+<label>Positie</label>
+<select id="pPos">
+<option value="">Kies positie</option>
+<option>Keeper</option><option>Verdediger</option><option>Middenvelder</option><option>Aanvaller</option>
+</select>
+</div>
+<div class="mactions">
+<button class="m-cancel" onclick="closePlayerModal()">Annuleren</button>
+<button class="m-confirm" onclick="savePlayer()">Opslaan</button>
+</div>
+</div>
+</div>
+<!-- MODAL: Doelpunt -->
+<div class="modal-overlay" id="goalModal">
+<div class="modal">
+<h2>Doelpunt registreren</h2>
+<div class="fg">
+<label>Scorer</label>
+<select id="goalScorer"><option value="">Kies scorer</option></select>
+</div>
+<div class="fg">
+<label>Type doelpunt</label>
+<div style="display:flex;gap:7px;flex-wrap:wrap;">
+<button class="gtype-btn active" id="gt-veldgoal" onclick="setGoalType('veldgoal')">Veldgoal</button>
+<button class="gtype-btn" id="gt-corner" onclick="setGoalType('corner')">Corner</button>
+<button class="gtype-btn" id="gt-strafbal" onclick="setGoalType('strafbal')">Strafbal</button>
+</div>
+</div>
+<div class="fg">
+<label>Assist door (optioneel)</label>
+<select id="goalAssist"><option value="">Geen assist</option></select>
+</div>
+<div class="mactions">
+<button class="m-cancel" onclick="closeGoalModal()">Annuleren</button>
+<button class="m-confirm" onclick="confirmGoal()">Registreren</button>
+</div>
+</div>
+</div>
+<!-- MODAL: Score bewerken -->
+<div class="modal-overlay" id="scoreModal">
+<div class="modal score-modal">
+<h2 style="margin-bottom:8px;">Score aanpassen</h2>
+<div class="ha-toggle">
+<button class="ha-btn active" id="haHome" onclick="setHA('home')">Thuis (HCQZ links)</button>
+<button class="ha-btn" id="haAway" onclick="setHA('away')">Uit (HCQZ rechts)</button>
+</div>
+<div class="score-preview">
+<div class="sp-nums"><span id="spLeft">0</span> - <span id="spRight">0</span></div>
+<div class="sp-lbl" id="spLbl">HCQZ - Tegenstander</div>
+</div>
+<div class="se-section se-hcqz">
+<div class="se-title">HCQZ</div>
+<div class="se-row"><label>Score</label><input class="se-num" id="seHCQZ" max="99" min="0" oninput="updateSP()" type="number" value="0"/></div>
+<div class="se-row">
+<label>Type doelpunt</label>
+<div class="se-btns">
+<button class="gtype-btn active" id="sgt-veldgoal" onclick="setSGT('veldgoal')">Veldgoal</button>
+<button class="gtype-btn" id="sgt-corner" onclick="setSGT('corner')">Corner</button>
+<button class="gtype-btn" id="sgt-strafbal" onclick="setSGT('strafbal')">Strafbal</button>
+</div>
+</div>
+<div class="se-row"><label>Scorer</label><select class="se-sel" id="seScorer"><option value="">Geen / onbekend</option></select></div>
+<div class="se-row"><label>Assist door</label><select class="se-sel" id="seAssist"><option value="">Geen assist</option></select></div>
+</div>
+<div class="se-section se-opp">
+<div class="se-title">Tegenstander</div>
+<div class="se-row"><label>Naam</label><input class="se-name" id="seOppName" oninput="updateSP()" placeholder="Naam tegenstander" type="text"/></div>
+<div class="se-row"><label>Score</label><input class="se-num" id="seOpp" max="99" min="0" oninput="updateSP()" type="number" value="0"/></div>
+<div class="se-row">
+<label>Type doelpunt</label>
+<div class="se-btns">
+<button class="gtype-btn active" id="sot-veldgoal" onclick="setSOT('veldgoal')">Veldgoal</button>
+<button class="gtype-btn" id="sot-corner" onclick="setSOT('corner')">Corner</button>
+<button class="gtype-btn" id="sot-strafbal" onclick="setSOT('strafbal')">Strafbal</button>
+</div>
+</div>
+</div>
+<div class="mactions">
+<button class="m-cancel" onclick="closeScoreModal()">Annuleren</button>
+<button class="m-confirm" onclick="applyScore()">Toepassen</button>
+</div>
+</div>
+</div>
+<!-- MODAL: Reset -->
+<div class="modal-overlay" id="resetModal">
+<div class="modal m-center">
+<h2>Wedstrijd Resetten</h2>
+<p>Reset de klok en speeltijden. Seizoensstatistieken blijven bewaard.</p>
+<div class="mactions">
+<button class="m-cancel" onclick="closeResetModal()">Annuleren</button>
+<button class="m-confirm m-danger" onclick="confirmReset()">Reset</button>
+</div>
+</div>
+</div>
+<!-- MODAL: Klok bewerken -->
+<div class="modal-overlay" id="clockModal">
+<div class="modal clock-modal">
+<h2>Tijd aanpassen</h2>
+<p class="chint">Resterende tijd voor dit kwart</p>
+<div class="clock-inputs">
+<input class="ci" id="cMin" max="17" min="0" placeholder="17" type="number"/>
+<span class="ccolon">:</span>
+<input class="ci" id="cSec" max="59" min="0" placeholder="30" type="number"/>
+</div>
+<div class="mactions">
+<button class="m-cancel" onclick="closeClockModal()">Annuleren</button>
+<button class="m-confirm" onclick="applyClockEdit()">Toepassen</button>
+</div>
+</div>
+</div>
+<!-- MODAL: Bevestigen -->
+<div class="modal-overlay" id="confirmModal">
+<div class="modal m-center">
+<h2 id="confTitle">Bevestigen</h2>
+<p id="confMsg" style="color:var(--muted);margin:7px 0 12px;font-size:12px;"></p>
+<div class="mactions">
+<button class="m-cancel" onclick="closeConfirm(false)">Annuleren</button>
+<button class="m-confirm m-danger" onclick="closeConfirm(true)">Bevestigen</button>
+</div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+'use strict';
+
+// ── CONSTANTS ──
+const QSECS = 17*60+30, SPAUSE = 2*60, HPAUSE = 5*60;
+const DB_NAME = 'D3CoachDB', DB_VER = 1, STORE = 'appdata', KEY = 'd3coach_v5';
+
+const PHASES = [
+  {id:'q1', lbl:'Kwart 1', dur:QSECS, isQ:true},
+  {id:'p1', lbl:'Korte Pauze', dur:SPAUSE, isP:true, isH:false},
+  {id:'q2', lbl:'Kwart 2', dur:QSECS, isQ:true},
+  {id:'ht', lbl:'Rust', dur:HPAUSE, isP:true, isH:true},
+  {id:'q3', lbl:'Kwart 3', dur:QSECS, isQ:true},
+  {id:'p2', lbl:'Korte Pauze', dur:SPAUSE, isP:true, isH:false},
+  {id:'q4', lbl:'Kwart 4', dur:QSECS, isQ:true},
+  {id:'done', lbl:'Klaar', dur:0, isDone:true}
+];
+
+// ── STATE ──
+let team=[], nid=1;
+let goalLog=[], ngid=1;
+let oppLog=[], noid=1;
+let seasonOpp={total:0,veldgoal:0,corner:0,strafbal:0};
+let running=false, timer=null;
+let pi=0, ps=0; // phase index, phase seconds
+let editPid=null;
+let goalType='veldgoal';
+let sgt='veldgoal', sot='veldgoal'; // score modal goal types
+let scoreHCQZ=0, scoreOpp=0, oppName='Tegenstander', isHome=true;
+let statsSort='name';
+let db=null;
+let confCb=null;
+
+// ── HELPERS ──
+function ph(){return PHASES[pi];}
+function rem(){return Math.max(0,ph().dur-ps);}
+function ft(s){return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');}
+function ftl(s){
+  var h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60;
+  return h>0?h+':'+String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'):String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0');
+}
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+var _tt;
+function toast(msg){
+  var t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  clearTimeout(_tt);_tt=setTimeout(function(){t.classList.remove('show');},2200);
+}
+
+// ── INDEXEDDB ──
+function openDB(){
+  return new Promise(function(res,rej){
+    var r=indexedDB.open(DB_NAME,DB_VER);
+    r.onupgradeneeded=function(e){
+      var d=e.target.result;
+      if(!d.objectStoreNames.contains(STORE))d.createObjectStore(STORE);
+    };
+    r.onsuccess=function(e){res(e.target.result);};
+    r.onerror=function(e){rej(e.target.error);};
+  });
+}
+function dbSet(k,v){
+  return new Promise(function(res,rej){
+    if(!db){res();return;}
+    var tx=db.transaction(STORE,'readwrite');
+    tx.objectStore(STORE).put(v,k).onsuccess=function(){res();};
+    tx.onerror=function(e){rej(e.target.error);};
+  });
+}
+function dbGet(k){
+  return new Promise(function(res,rej){
+    if(!db){res(null);return;}
+    var tx=db.transaction(STORE,'readonly');
+    var r=tx.objectStore(STORE).get(k);
+    r.onsuccess=function(e){res(e.target.result);};
+    r.onerror=function(e){rej(e.target.error);};
+  });
+}
+
+async function save(){
+  var data={team,nid,goalLog,ngid,oppLog,noid,seasonOpp,pi,ps,scoreHCQZ,scoreOpp,oppName,isHome,savedAt:new Date().toISOString()};
+  try{
+    await dbSet(KEY,data);
+    try{localStorage.setItem(KEY,JSON.stringify(data));}catch(e){}
+    var now=new Date().toLocaleTimeString('nl-NL',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+    var el=document.getElementById('lastSaved');if(el)el.textContent=now;
+    var bar=document.getElementById('saveBar');if(bar)bar.textContent='Opgeslagen om '+now;
+  }catch(e){
+    var bar=document.getElementById('saveBar');if(bar)bar.textContent='Opslaan mislukt!';
+  }
+}
+
+async function load(){
+  var data=null;
+  try{data=await dbGet(KEY);}catch(e){}
+  if(!data){try{var r=localStorage.getItem(KEY);if(r)data=JSON.parse(r);}catch(e){}}
+  if(!data)return false;
+  try{
+    team=data.team||[];nid=data.nid||(team.length+1);
+    goalLog=data.goalLog||[];ngid=data.ngid||(goalLog.length+1);
+    oppLog=data.oppLog||[];noid=data.noid||(oppLog.length+1);
+    seasonOpp=data.seasonOpp||{total:0,veldgoal:0,corner:0,strafbal:0};
+    pi=data.pi||0;ps=data.ps||0;
+    scoreHCQZ=data.scoreHCQZ||0;scoreOpp=data.scoreOpp||0;
+    oppName=data.oppName||'Tegenstander';
+    isHome=data.isHome!==undefined?data.isHome:true;
+    team.forEach(function(p){
+      if(p.benchSeconds===undefined)p.benchSeconds=0;
+      if(p.seasonBench===undefined)p.seasonBench=0;
+      if(p.matchAssists===undefined)p.matchAssists=0;
+      if(p.seasonAssists===undefined)p.seasonAssists=0;
+    });
+    return true;
+  }catch(e){return false;}
+}
+
+function forceSave(){save().then(function(){toast('Opgeslagen');});}
+setInterval(save,5000);
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='hidden')save();});
+window.addEventListener('pagehide',function(){save();});
+
+// ── EXPORT/IMPORT ──
+function exportData(){
+  var blob=new Blob([JSON.stringify({team,nid,goalLog,ngid,oppLog,noid,seasonOpp,scoreHCQZ,scoreOpp,oppName,isHome,v:5},null,2)],{type:'application/json'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(blob);
+  a.download='d3coach-'+new Date().toISOString().slice(0,10)+'.json';
+  a.click();
+  toast('Geexporteerd');
+}
+function importData(ev){
+  var file=ev.target.files[0];if(!file)return;
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var d=JSON.parse(e.target.result);
+      if(!d.team)throw new Error();
+      showConfirm(d.team.length+' spelers importeren?','Huidige gegevens worden overschreven.',async function(){
+        team=d.team;nid=d.nid||(team.length+1);
+        goalLog=d.goalLog||[];ngid=d.ngid||(goalLog.length+1);
+        oppLog=d.oppLog||[];noid=d.noid||(oppLog.length+1);
+        seasonOpp=d.seasonOpp||{total:0,veldgoal:0,corner:0,strafbal:0};
+        scoreHCQZ=d.scoreHCQZ||0;scoreOpp=d.scoreOpp||0;
+        oppName=d.oppName||'Tegenstander';isHome=d.isHome!==undefined?d.isHome:true;
+        team.forEach(function(p){if(p.benchSeconds===undefined)p.benchSeconds=0;if(p.seasonBench===undefined)p.seasonBench=0;});
+        await save();updateUI();renderTeam();renderStats();
+        toast(team.length+' spelers geimporteerd');
+      });
+    }catch(e){toast('Ongeldig bestand');}
+  };
+  reader.readAsText(file);ev.target.value='';
+}
+function clearSeason(){
+  showConfirm('Seizoensstatistieken wissen?','Teamlijst blijft bewaard.',async function(){
+    team.forEach(function(p){p.seasonGoals=0;p.seasonAssists=0;p.seasonBench=0;p.seasonField=0;p.matchesPlayed=0;p.matchGoals=0;p.matchAssists=0;p.fieldSeconds=0;p.benchSeconds=0;});
+    goalLog=[];oppLog=[];seasonOpp={total:0,veldgoal:0,corner:0,strafbal:0};
+    scoreHCQZ=0;scoreOpp=0;
+    await save();renderMatch();renderStats();toast('Gewist');
+  });
+}
+function clearAll(){
+  showConfirm('Alles wissen?','Alle spelers en statistieken worden verwijderd.',async function(){
+    team=[];goalLog=[];oppLog=[];nid=1;ngid=1;noid=1;pi=0;ps=0;
+    scoreHCQZ=0;scoreOpp=0;oppName='Tegenstander';isHome=true;
+    seasonOpp={total:0,veldgoal:0,corner:0,strafbal:0};
+    try{await dbSet(KEY,null);}catch(e){}
+    try{localStorage.removeItem(KEY);}catch(e){}
+    updateUI();renderTeam();renderStats();toast('Alles gewist');
+  });
+}
+function updateStorageStatus(){
+  var el=document.getElementById('storageStatus');
+  if(el)el.textContent='IndexedDB actief. '+team.length+' spelers opgeslagen. Gegevens blijven bewaard na afsluiten.';
+}
+
+// ── TABS ──
+function switchTab(name){
+  var tabs=['match','team','stats','data'];
+  document.querySelectorAll('.tab-btn').forEach(function(b,i){b.classList.toggle('active',tabs[i]===name);});
+  document.querySelectorAll('.tab-pane').forEach(function(p){p.classList.remove('active');});
+  document.getElementById('tab-'+name).classList.add('active');
+  if(name==='match')renderMatch();
+  if(name==='team')renderTeam();
+  if(name==='stats')renderStats();
+  if(name==='data')updateStorageStatus();
+}
+
+// ── CLOCK ──
+function toggleClock(){if(ph().isDone)return;running?stopClock():startClock();}
+function startClock(){
+  running=true;
+  var b=document.getElementById('startBtn');b.className='btn btn-stop';b.textContent='Pauze';
+  timer=setInterval(tick,1000);
+}
+function stopClock(){
+  running=false;
+  var b=document.getElementById('startBtn');b.className='btn btn-start';b.textContent='Start';
+  clearInterval(timer);
+}
+function tick(){
+  ps++;
+  var p=ph();
+  if(p.isQ){
+    team.forEach(function(pl){
+      if(!pl.inSquad)return;
+      if(pl.onField)pl.fieldSeconds++;
+      else pl.benchSeconds++;
+    });
+  }
+  if(ps>=p.dur)advance();else updateUI();
+}
+function advance(manual){
+  stopClock();ps=0;pi++;
+  if(pi>=PHASES.length)pi=PHASES.length-1;
+  var p=ph();
+  if(p.isDone){toast('Wedstrijd afgelopen!');endMatch();updateUI();save();return;}
+  if(p.isP){updateUI();startClock();toast(p.isH?'Rust - 5 min':'Pauze - 2 min');}
+  else{updateUI();if(!manual)toast(p.lbl);}
+}
+function nextQuarter(){if(ph().isDone)return;stopClock();ps=0;advance(true);toast(ph().lbl);}
+function skipPause(){
+  if(!ph().isP)return;
+  stopClock();ps=0;pi++;
+  if(pi>=PHASES.length)pi=PHASES.length-1;
+  updateUI();toast('Pauze overgeslagen');
+}
+function endMatch(){
+  team.forEach(function(p){
+    if(p.inSquad){
+      p.seasonField=(p.seasonField||0)+p.fieldSeconds;
+      p.seasonBench=(p.seasonBench||0)+p.benchSeconds;
+      p.seasonGoals=(p.seasonGoals||0)+p.matchGoals;
+      p.seasonAssists=(p.seasonAssists||0)+p.matchAssists;
+      p.matchesPlayed=(p.matchesPlayed||0)+1;
+    }
+  });
+  var mo=oppLog.length;
+  if(mo>0||goalLog.length>0){
+    seasonOpp.total=(seasonOpp.total||0)+mo;
+    oppLog.forEach(function(g){seasonOpp[g.type]=(seasonOpp[g.type]||0)+1;});
+  }
+}
+
+// ── SCORE DISPLAY ──
+function updateScore(){
+  var lv=isHome?scoreHCQZ:scoreOpp, rv=isHome?scoreOpp:scoreHCQZ;
+  var ll=isHome?'HCQZ':oppName, rl=isHome?oppName:'HCQZ';
+  var sl=document.getElementById('scoreLeft'),sr=document.getElementById('scoreRight');
+  if(sl){sl.textContent=lv;sl.className='sval '+(isHome?'hcqz':'opp');}
+  if(sr){sr.textContent=rv;sr.className='sval '+(isHome?'opp':'hcqz');}
+  var ll2=document.getElementById('lblLeft'),rl2=document.getElementById('lblRight');
+  if(ll2)ll2.textContent=ll;if(rl2)rl2.textContent=rl;
+  var sg=document.getElementById('stGoals'),sa=document.getElementById('stAgainst');
+  if(sg)sg.textContent=scoreHCQZ;if(sa)sa.textContent=scoreOpp;
+}
+
+// ── UI UPDATE ──
+function updateUI(){
+  var p=ph(), r=rem();
+  var cl=document.getElementById('gameClock');
+  var qb=document.getElementById('qBadge');
+  var ql=document.getElementById('qLabel');
+  var sb=document.getElementById('startBtn');
+  var pb=document.getElementById('pauseBanner');
+
+  if(p.isDone){
+    cl.textContent='00:00';cl.className='clock';
+    qb.textContent='Klaar';qb.className='qbadge';
+    ql.textContent='';sb.disabled=true;sb.className='btn btn-ghost';sb.textContent='Klaar';
+  }else if(p.isP){
+    cl.textContent=ft(r);cl.className='clock '+(p.isH?'halftime':'paused');
+    qb.textContent=p.isH?'Rust':'Pauze';qb.className='qbadge '+(p.isH?'half':'pause');
+    ql.textContent=p.isH?'(5 min)':'(2 min)';
+  }else{
+    cl.textContent=ft(r);cl.className='clock';
+    qb.textContent=p.lbl;qb.className='qbadge';
+    ql.textContent='van 17:30';
+  }
+
+  if(p.isP){
+    pb.classList.add('show');pb.classList.toggle('half-banner',p.isH);
+    document.getElementById('pauseTitle').textContent=p.isH?'Rust':'Korte Pauze';
+    document.getElementById('pauseDesc').textContent=p.isH?'Teams wisselen van speelhelft':'Drinkpauze / tactische bijsturing';
+    document.getElementById('pauseCD').textContent=ft(r);
+  }else{pb.classList.remove('show');}
+
+  updateScore();
+  updateProg();
+  renderMatch();
+}
+
+function updateProg(){
+  var row=document.getElementById('progRow');row.innerHTML='';
+  PHASES.forEach(function(p,idx){
+    if(p.isDone)return;
+    var b=document.createElement('div');
+    b.className=p.isP?(p.isH?'pb half-b':'pb pause-b'):'pb';
+    if(!p.isP){if(idx<pi)b.classList.add('done');else if(idx===pi)b.classList.add('active');}
+    var f=document.createElement('div');f.className='pb-fill';
+    f.style.width=idx<pi?'100%':(idx===pi?((ps/p.dur)*100)+'%':'0%');
+    b.appendChild(f);row.appendChild(b);
+  });
+}
+
+// ── MATCH RENDER ──
+function renderMatch(){
+  var squad=team.filter(function(p){return p.inSquad;});
+  var onP=squad.filter(function(p){return p.onField;});
+  var offP=squad.filter(function(p){return !p.onField;});
+  var so=document.getElementById('stOn'),sf=document.getElementById('stOff'),st=document.getElementById('stTotal');
+  if(so)so.textContent=onP.length;
+  if(sf)sf.textContent=offP.length;
+  if(st)st.textContent=squad.length;
+  updateScore();
+  var og=document.getElementById('onGrid'),fg=document.getElementById('offGrid');
+  if(og)og.innerHTML=onP.length?onP.map(cardHTML).join(''):emptyHTML('Geen spelers op veld');
+  if(fg)fg.innerHTML=offP.length?offP.map(cardHTML).join(''):emptyHTML('Bank is leeg');
+}
+
+function cardHTML(p){
+  var cls=p.onField?'on-field':'off-field';
+  var lbl=p.onField?'OP VELD':'OP BANK';
+  var tot=p.fieldSeconds+p.benchSeconds;
+  var pct=tot>0?Math.round((p.fieldSeconds/tot)*100):0;
+  return '<div class="pcard '+cls+'">'+
+    '<button class="del-btn" onclick="removeFromSquad('+p.id+')">X</button>'+
+    '<div class="card-top">'+
+      '<div class="pnum">'+esc(p.number)+'</div>'+
+      '<div class="pinfo">'+
+        '<div class="pname">'+esc(p.name)+'</div>'+
+        '<div class="ppos">'+esc(p.position)+'</div>'+
+        '<div class="ptimes">'+
+          '<span class="pt field">Veld: '+ftl(p.fieldSeconds)+'</span>'+
+          '<span class="pt bench">Bank: '+ftl(p.benchSeconds)+'</span>'+
+        '</div>'+
+        '<div class="pstats">'+
+          '<span class="pst">Goals: '+p.matchGoals+'</span>'+
+          '<span class="pst">Assists: '+p.matchAssists+'</span>'+
+          '<span class="pst" style="color:#888;font-size:10px;">'+pct+'% veld</span>'+
+        '</div>'+
+      '</div>'+
+      '<div class="toggle-wrap">'+
+        '<div class="tlbl">'+lbl+'</div>'+
+        '<label class="toggle">'+
+          '<input type="checkbox" '+(p.onField?'checked':'')+' onchange="toggleField('+p.id+')"/>'+
+          '<span class="slider"></span>'+
+        '</label>'+
+      '</div>'+
+    '</div>'+
+  '</div>';
+}
+function emptyHTML(msg){return '<div class="empty">'+msg+'</div>';}
+
+function toggleField(id){
+  var p=team.find(function(x){return x.id===id;});if(!p)return;
+  p.onField=!p.onField;save();renderMatch();
+  toast(p.name+' - '+(p.onField?'Op Veld':'Op Bank'));
+}
+function removeFromSquad(id){
+  var p=team.find(function(x){return x.id===id;});if(!p)return;
+  p.inSquad=false;p.onField=false;save();renderMatch();
+  toast(p.name+' uit selectie');
+}
+
+// ── GOAL MODAL ──
+function openGoalModal(){
+  goalType='veldgoal';
+  ['veldgoal','corner','strafbal'].forEach(function(t){document.getElementById('gt-'+t).classList.toggle('active',t==='veldgoal');});
+  var squad=team.filter(function(x){return x.inSquad;});
+  var opts='<option value="">Kies scorer</option>'+squad.map(function(x){return '<option value="'+x.id+'">'+x.number+' '+esc(x.name)+'</option>';}).join('');
+  document.getElementById('goalScorer').innerHTML=opts;
+  document.getElementById('goalAssist').innerHTML='<option value="">Geen assist</option>'+squad.map(function(x){return '<option value="'+x.id+'">'+x.number+' '+esc(x.name)+'</option>';}).join('');
+  document.getElementById('goalModal').classList.add('open');
+}
+function closeGoalModal(){document.getElementById('goalModal').classList.remove('open');}
+function setGoalType(t){goalType=t;['veldgoal','corner','strafbal'].forEach(function(x){document.getElementById('gt-'+x).classList.toggle('active',x===t);});}
+function confirmGoal(){
+  var sid=parseInt(document.getElementById('goalScorer').value)||null;
+  if(!sid){toast('Kies een scorer');return;}
+  var scorer=team.find(function(p){return p.id===sid;});if(!scorer)return;
+  scorer.matchGoals++;scoreHCQZ++;
+  var aid=parseInt(document.getElementById('goalAssist').value)||null;
+  var aname=null;
+  if(aid&&aid!==sid){
+    var h=team.find(function(p){return p.id===aid;});
+    if(h){aname=h.number+' '+h.name;h.matchAssists++;}
+  }
+  var el=0;
+  for(var i=0;i<pi;i++){if(PHASES[i].isQ)el+=PHASES[i].dur;}
+  if(ph().isQ)el+=ps;
+  goalLog.push({id:ngid++,time:ft(el),sid:scorer.id,sname:scorer.number+' '+scorer.name,type:goalType,aid:aid,aname:aname});
+  closeGoalModal();save();updateScore();renderMatch();
+  toast('Doelpunt '+scorer.name+' ('+goalType+')');
+}
+
+// ── SCORE MODAL ──
+function openScoreEdit(){
+  document.getElementById('seHCQZ').value=scoreHCQZ;
+  document.getElementById('seOpp').value=scoreOpp;
+  document.getElementById('seOppName').value=oppName==='Tegenstander'?'':oppName;
+  document.getElementById('haHome').classList.toggle('active',isHome);
+  document.getElementById('haAway').classList.toggle('active',!isHome);
+  sgt='veldgoal';sot='veldgoal';
+  ['veldgoal','corner','strafbal'].forEach(function(t){
+    document.getElementById('sgt-'+t).classList.toggle('active',t==='veldgoal');
+    document.getElementById('sot-'+t).classList.toggle('active',t==='veldgoal');
+  });
+  var squad=team.filter(function(x){return x.inSquad;});
+  var opts='<option value="">Geen / onbekend</option>'+squad.map(function(x){return '<option value="'+x.id+'">'+x.number+' '+esc(x.name)+'</option>';}).join('');
+  document.getElementById('seScorer').innerHTML=opts;
+  document.getElementById('seAssist').innerHTML='<option value="">Geen assist</option>'+squad.map(function(x){return '<option value="'+x.id+'">'+x.number+' '+esc(x.name)+'</option>';}).join('');
+  updateSP();
+  document.getElementById('scoreModal').classList.add('open');
+}
+function closeScoreModal(){document.getElementById('scoreModal').classList.remove('open');}
+function setHA(mode){
+  isHome=(mode==='home');
+  document.getElementById('haHome').classList.toggle('active',isHome);
+  document.getElementById('haAway').classList.toggle('active',!isHome);
+  updateSP();
+}
+function setSGT(t){sgt=t;['veldgoal','corner','strafbal'].forEach(function(x){document.getElementById('sgt-'+x).classList.toggle('active',x===t);});}
+function setSOT(t){sot=t;['veldgoal','corner','strafbal'].forEach(function(x){document.getElementById('sot-'+x).classList.toggle('active',x===t);});}
+function updateSP(){
+  var hv=parseInt(document.getElementById('seHCQZ').value)||0;
+  var ov=parseInt(document.getElementById('seOpp').value)||0;
+  var nm=document.getElementById('seOppName').value.trim()||'Tegenstander';
+  var lv=isHome?hv:ov, rv=isHome?ov:hv;
+  var ll=isHome?'HCQZ':nm, rl=isHome?nm:'HCQZ';
+  document.getElementById('spLeft').textContent=lv;
+  document.getElementById('spRight').textContent=rv;
+  document.getElementById('spLbl').textContent=ll+' - '+rl;
+}
+function applyScore(){
+  var newH=parseInt(document.getElementById('seHCQZ').value)||0;
+  var newO=parseInt(document.getElementById('seOpp').value)||0;
+  var nm=document.getElementById('seOppName').value.trim();
+  if(nm)oppName=nm;
+  var el=0;
+  for(var i=0;i<pi;i++){if(PHASES[i].isQ)el+=PHASES[i].dur;}
+  if(ph().isQ)el+=ps;
+  // Own goals diff
+  var od=newH-scoreHCQZ;
+  if(od>0){
+    var sid=parseInt(document.getElementById('seScorer').value)||null;
+    var aid=parseInt(document.getElementById('seAssist').value)||null;
+    for(var i=0;i<od;i++){
+      var sc=sid?team.find(function(p){return p.id===sid;}):null;
+      if(sc)sc.matchGoals++;
+      var an=null;
+      if(aid&&aid!==sid){var h=team.find(function(p){return p.id===aid;});if(h){an=h.number+' '+h.name;h.matchAssists++;}}
+      goalLog.push({id:ngid++,time:ft(el),sid:sc?sc.id:null,sname:sc?sc.number+' '+sc.name:'Onbekend',type:sgt,aid:aid||null,aname:an});
+    }
+  }else if(od<0){
+    for(var i=0;i<Math.abs(od);i++){
+      if(goalLog.length){
+        var g=goalLog[goalLog.length-1];
+        var sc=team.find(function(p){return p.id===g.sid;});if(sc)sc.matchGoals=Math.max(0,sc.matchGoals-1);
+        if(g.aid){var h=team.find(function(p){return p.id===g.aid;});if(h)h.matchAssists=Math.max(0,h.matchAssists-1);}
+        goalLog.pop();
+      }
+    }
+  }
+  // Opp goals diff
+  var opd=newO-scoreOpp;
+  if(opd>0){
+    for(var i=0;i<opd;i++)oppLog.push({id:noid++,time:ft(el),type:sot});
+  }else if(opd<0){
+    for(var i=0;i<Math.abs(opd);i++){if(oppLog.length)oppLog.pop();}
+  }
+  scoreHCQZ=newH;scoreOpp=newO;
+  closeScoreModal();save();updateScore();renderMatch();
+  toast('Score: '+scoreHCQZ+' - '+scoreOpp);
+}
+
+// ── OPP LOG ──
+function renderOppLog(){
+  var list=document.getElementById('oppLogList');if(!list)return;
+  if(!oppLog.length){list.innerHTML='<div class="empty-log">Nog geen tegendoelpunten</div>';return;}
+  list.innerHTML=oppLog.map(function(g){
+    return '<div class="log-item">'+
+      '<span class="li-time">'+g.time+'</span>'+
+      '<span class="li-name">Tegenstander</span>'+
+      '<span class="li-type">'+g.type+'</span>'+
+      '<button class="li-del" onclick="delOpp('+g.id+')">X</button>'+
+    '</div>';
+  }).join('');
+}
+function delOpp(id){
+  oppLog=oppLog.filter(function(x){return x.id!==id;});
+  scoreOpp=Math.max(0,scoreOpp-1);
+  save();updateScore();renderOppLog();toast('Tegendoelpunt verwijderd');
+}
+
+// ── TEAM TAB ──
+function renderTeam(){
+  var q=(document.getElementById('teamSearch').value||'').toLowerCase();
+  var list=document.getElementById('teamList');
+  var filtered=team.filter(function(p){return p.name.toLowerCase().includes(q)||String(p.number).includes(q)||p.position.toLowerCase().includes(q);});
+  if(!filtered.length){list.innerHTML='<div class="empty">Geen spelers gevonden</div>';return;}
+  list.innerHTML=filtered.map(function(p){
+    return '<div class="trow '+(p.inSquad?'in-squad':'')+'">'+
+      '<div class="tnum">'+esc(p.number)+'</div>'+
+      '<div class="tinfo">'+
+        '<div class="tname">'+esc(p.name)+'</div>'+
+        '<div class="tpos">'+esc(p.position)+'</div>'+
+        '<div class="tstats">W:'+p.matchesPlayed+' | Veld:'+ftl(p.seasonField||0)+' Bank:'+ftl(p.seasonBench||0)+' | Goals:'+p.seasonGoals+' Assists:'+p.seasonAssists+'</div>'+
+      '</div>'+
+      '<div class="tactions">'+
+        '<button class="bsm b-blue" onclick="editPlayer('+p.id+')">Bewerk</button>'+
+        '<button class="bsm b-red" onclick="deletePlayer('+p.id+')">Verwijder</button>'+
+        '<label style="display:flex;align-items:center;gap:4px;cursor:pointer;font-size:11px;font-weight:700;color:var(--blue);">'+
+          '<input type="checkbox" class="squad-cb" '+(p.inSquad?'checked':'')+' onchange="toggleSquad('+p.id+',this.checked)"/>'+
+          'Selectie'+
+        '</label>'+
+      '</div>'+
+    '</div>';
+  }).join('');
+}
+
+function toggleSquad(id,checked){
+  var p=team.find(function(x){return x.id===id;});if(!p)return;
+  p.inSquad=checked;
+  if(checked)p.onField=true;
+  else p.onField=false;
+  save();renderTeam();renderMatch();
+}
+
+function applySquad(){
+  var btn=document.getElementById('applyBtn');
+  if(btn){btn.style.background='#1b5e20';btn.textContent='Toegepast!';setTimeout(function(){btn.style.background='';btn.textContent='Selectie toepassen';},1200);}
+  var count=team.filter(function(p){return p.inSquad;}).length;
+  save();switchTab('match');
+  toast(count+' spelers in selectie');
+}
+
+// ── ADD/EDIT PLAYER ──
+function openAddPlayer(){
+  editPid=null;
+  document.getElementById('playerModalTitle').textContent='Nieuwe speler';
+  document.getElementById('pNum').value='';
+  document.getElementById('pName').value='';
+  document.getElementById('pPos').value='';
+  document.getElementById('playerModal').classList.add('open');
+  setTimeout(function(){document.getElementById('pNum').focus();},100);
+}
+function editPlayer(id){
+  var p=team.find(function(x){return x.id===id;});if(!p)return;
+  editPid=id;
+  document.getElementById('playerModalTitle').textContent='Speler bewerken';
+  document.getElementById('pNum').value=p.number;
+  document.getElementById('pName').value=p.name;
+  document.getElementById('pPos').value=p.position;
+  document.getElementById('playerModal').classList.add('open');
+}
+function closePlayerModal(){document.getElementById('playerModal').classList.remove('open');}
+function savePlayer(){
+  var num=document.getElementById('pNum').value.trim();
+  var name=document.getElementById('pName').value.trim();
+  var pos=document.getElementById('pPos').value;
+  if(!name){toast('Vul een naam in');return;}
+  if(editPid){
+    var p=team.find(function(x){return x.id===editPid;});
+    if(p){p.number=num||'?';p.name=name;p.position=pos||'Speler';}
+    toast(name+' bijgewerkt');
+  }else{
+    team.push({id:nid++,number:num||'?',name:name,position:pos||'Speler',inSquad:false,onField:false,fieldSeconds:0,benchSeconds:0,matchGoals:0,matchAssists:0,seasonGoals:0,seasonAssists:0,seasonField:0,seasonBench:0,matchesPlayed:0});
+    toast(name+' toegevoegd');
+  }
+  editPid=null;closePlayerModal();save();renderTeam();renderMatch();
+}
+function deletePlayer(id){
+  var p=team.find(function(x){return x.id===id;});if(!p)return;
+  showConfirm('Verwijder '+p.name+'?','Alle statistieken gaan verloren.',async function(){
+    team=team.filter(function(x){return x.id!==id;});
+    await save();renderTeam();renderMatch();toast(p.name+' verwijderd');
+  });
+}
+
+// ── STATS TAB ──
+function sortStats(by){statsSort=by;renderStats();}
+function renderStats(){
+  var tOwn=scoreHCQZ+team.reduce(function(s,p){return s+(p.seasonGoals||0);},0);
+  var tOpp=scoreOpp+(seasonOpp.total||0);
+  var diff=tOwn-tOpp;
+  var dc=diff>0?'pos':diff<0?'neg':'neu';
+  var vg=(oppLog.filter(function(g){return g.type==='veldgoal';}).length)+(seasonOpp.veldgoal||0);
+  var co=(oppLog.filter(function(g){return g.type==='corner';}).length)+(seasonOpp.corner||0);
+  var sb=(oppLog.filter(function(g){return g.type==='strafbal';}).length)+(seasonOpp.strafbal||0);
+  document.getElementById('seasonRow').innerHTML=
+    '<div class="season-item"><div class="season-val own">'+tOwn+'</div><div class="season-lbl">Eigen goals</div></div>'+
+    '<div class="season-item"><div class="season-val opp">'+tOpp+'</div><div class="season-lbl">Tegen goals</div></div>'+
+    '<div class="season-item"><div class="season-val '+dc+'">'+(diff>0?'+':'')+diff+'</div><div class="season-lbl">Doelsaldo</div></div>'+
+    '<div class="season-item"><div class="season-val opp" style="font-size:15px;">'+vg+'V/'+co+'C/'+sb+'S</div><div class="season-lbl">Tegen V/C/S</div></div>';
+  renderOppLog();
+  var sorted=team.slice();
+  if(statsSort==='goals')sorted.sort(function(a,b){return (b.seasonGoals+b.matchGoals)-(a.seasonGoals+a.matchGoals);});
+  else if(statsSort==='time')sorted.sort(function(a,b){return ((b.seasonField||0)+b.fieldSeconds)-((a.seasonField||0)+a.fieldSeconds);});
+  else if(statsSort==='bench')sorted.sort(function(a,b){return ((b.seasonBench||0)+b.benchSeconds)-((a.seasonBench||0)+a.benchSeconds);});
+  else if(statsSort==='matches')sorted.sort(function(a,b){return b.matchesPlayed-a.matchesPlayed;});
+  else sorted.sort(function(a,b){return a.name.localeCompare(b.name);});
+  var tbody=document.getElementById('statsTbody');
+  if(!sorted.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;color:var(--muted);padding:16px;">Nog geen spelers</td></tr>';return;}
+  tbody.innerHTML=sorted.map(function(p){
+    var ft2=(p.seasonField||0)+p.fieldSeconds;
+    var bt=(p.seasonBench||0)+p.benchSeconds;
+    var tt=ft2+bt;
+    var pct=tt>0?Math.round((ft2/tt)*100):0;
+    var tg=(p.seasonGoals||0)+p.matchGoals;
+    var ta=(p.seasonAssists||0)+p.matchAssists;
+    return '<tr>'+
+      '<td><strong>'+esc(p.number)+'</strong></td>'+
+      '<td>'+esc(p.name)+'</td>'+
+      '<td>'+esc(p.position)+'</td>'+
+      '<td class="n">'+p.matchesPlayed+'</td>'+
+      '<td class="n t">'+ftl(ft2)+'</td>'+
+      '<td class="n b">'+ftl(bt)+'</td>'+
+      '<td class="n">'+ftl(tt)+'</td>'+
+      '<td class="n">'+pct+'%</td>'+
+      '<td class="n g">'+tg+'</td>'+
+      '<td class="n">'+ta+'</td>'+
+    '</tr>';
+  }).join('');
+}
+
+// ── RESET ──
+function openResetModal(){document.getElementById('resetModal').classList.add('open');}
+function closeResetModal(){document.getElementById('resetModal').classList.remove('open');}
+function confirmReset(){
+  stopClock();pi=0;ps=0;goalLog=[];oppLog=[];scoreHCQZ=0;scoreOpp=0;
+  team.forEach(function(p){p.fieldSeconds=0;p.benchSeconds=0;p.matchGoals=0;p.matchAssists=0;});
+  var b=document.getElementById('startBtn');b.disabled=false;b.className='btn btn-start';b.textContent='Start';
+  closeResetModal();save();updateUI();toast('Wedstrijd gereset');
+}
+
+// ── CLOCK EDIT ──
+function openClockEdit(){
+  if(ph().isDone)return;
+  var r=rem();
+  document.getElementById('cMin').value=Math.floor(r/60);
+  document.getElementById('cSec').value=r%60;
+  document.getElementById('clockModal').classList.add('open');
+}
+function closeClockModal(){document.getElementById('clockModal').classList.remove('open');}
+function applyClockEdit(){
+  var m=parseInt(document.getElementById('cMin').value)||0;
+  var s=parseInt(document.getElementById('cSec').value)||0;
+  var total=Math.min(m*60+s,ph().dur);
+  ps=Math.max(0,ph().dur-total);
+  closeClockModal();updateUI();toast('Tijd: '+ft(total));
+}
+
+// ── CONFIRM MODAL ──
+function showConfirm(title,msg,cb){
+  confCb=cb;
+  document.getElementById('confTitle').textContent=title;
+  document.getElementById('confMsg').textContent=msg;
+  document.getElementById('confirmModal').classList.add('open');
+}
+function closeConfirm(ok){
+  document.getElementById('confirmModal').classList.remove('open');
+  if(ok&&typeof confCb==='function')confCb();
+  confCb=null;
+}
+
+// ── INSTALL BANNER ──
+function dismissInstall(){
+  document.getElementById('installBar').classList.remove('show');
+  try{localStorage.setItem('installDismissed','1');}catch(e){}
+}
+function checkInstall(){
+  if(window.navigator.standalone===true)return;
+  try{if(localStorage.getItem('installDismissed'))return;}catch(e){}
+  if(/iphone|ipad|ipod/i.test(navigator.userAgent))document.getElementById('installBar').classList.add('show');
+}
+
+// ── OFFLINE ──
+function updateOnline(){document.getElementById('offlineBar').classList.toggle('show',!navigator.onLine);}
+window.addEventListener('online',updateOnline);
+window.addEventListener('offline',updateOnline);
+updateOnline();
+
+// ── SERVICE WORKER ──
+if('serviceWorker' in navigator){
+  window.addEventListener('load',function(){navigator.serviceWorker.register('./sw.js').catch(function(){});});
+}
+
+// ── MODAL BACKDROP CLOSE ──
+['playerModal','goalModal','scoreModal','resetModal','clockModal','confirmModal'].forEach(function(id){
+  document.getElementById(id).addEventListener('click',function(e){
+    if(e.target===this){
+      if(id==='confirmModal')closeConfirm(false);
+      else if(id==='clockModal')closeClockModal();
+      else if(id==='scoreModal')closeScoreModal();
+      else if(id==='playerModal')closePlayerModal();
+      else if(id==='goalModal')closeGoalModal();
+      else if(id==='resetModal')closeResetModal();
+    }
+  });
+});
+document.getElementById('pName').addEventListener('keydown',function(e){if(e.key==='Enter')savePlayer();});
+
+// ── INIT ──
+async function init(){
+  try{
+    db=await openDB();
+    var bar=document.getElementById('saveBar');if(bar)bar.textContent='IndexedDB gereed';
+  }catch(e){
+    var bar=document.getElementById('saveBar');if(bar)bar.textContent='Opslag: localStorage';
+  }
+  var loaded=await load();
+  if(!loaded){
+    var sample=[
+      {number:'1',name:'Sophie Bakker',position:'Keeper'},
+      {number:'3',name:'Lisa de Vries',position:'Verdediger'},
+      {number:'5',name:'Emma Jansen',position:'Verdediger'},
+      {number:'7',name:'Anna Smit',position:'Middenvelder'},
+      {number:'9',name:'Fleur Visser',position:'Middenvelder'},
+      {number:'11',name:'Roos Mulder',position:'Aanvaller'},
+      {number:'13',name:'Noor Hendriks',position:'Aanvaller'},
+      {number:'15',name:'Lotte Dekker',position:'Middenvelder'},
+      {number:'17',name:'Iris Bos',position:'Verdediger'},
+      {number:'19',name:'Maud Willems',position:'Aanvaller'},
+    ];
+    sample.forEach(function(sp){
+      team.push({id:nid++,number:sp.number,name:sp.name,position:sp.position,inSquad:false,onField:false,fieldSeconds:0,benchSeconds:0,matchGoals:0,matchAssists:0,seasonGoals:0,seasonAssists:0,seasonField:0,seasonBench:0,matchesPlayed:0});
+    });
+    await save();
+  }
+  checkInstall();
+  updateUI();
+  updateStorageStatus();
+}
+
+init();
+</script>
+</body>
+</html>
